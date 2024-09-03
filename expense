@@ -29,7 +29,7 @@ function logAndExit(error) {
 
 async function listExpenses() {
   await client.connect().catch(err => logAndExit(err));
-  
+
   let response = await client.query('SELECT * FROM expenses ORDER BY created_on')
                              .catch(err => logAndExit(err));
   
@@ -51,9 +51,12 @@ async function addExpense(amount, memo) {
   await client.connect().catch(err => logAndExit(err));;
   
   let date = new Date().toLocaleDateString();
+
+  let queryText = 'INSERT INTO expenses (created_on, amount, memo) VALUES ($1, $2, $3)';
+  let values = [date, amount, memo];
   
-  await client.query(`INSERT INTO expenses (created_on, amount, memo)
-  VALUES ('${date}', ${amount}, '${memo}')`).catch(err => logAndExit(err));;
+  await client.query(queryText, values)
+              .catch(err => logAndExit(err));;
   
   await client.end().catch(err => logAndExit(err));
 }
