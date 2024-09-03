@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 const { Client } = require('pg');
-const { argv } = require('node:process');
+const PROCESS = require('process');
 const client = new Client({
   database: 'expenses_cli'
 });
@@ -22,11 +22,17 @@ function displayHelp() {
   console.log(HELP);
 }
 
-async function listExpenses() {
-  await client.connect();
-  
-  let response = await client.query('SELECT * FROM expenses ORDER BY created_on');
+function logAndExit(error) {
+  console.log(error);
+  PROCESS.exit(1);
+}
 
+async function listExpenses() {
+  await client.connect().catch(err => logAndExit(err));
+  
+  let response = await client.query('SELECT * FROM expenses ORDER BY created_on')
+                             .catch(err => logAndExit(err));
+  
   response.rows.forEach(tuple => {
     let columns = [
       `${tuple.id}`.padStart(3),
@@ -36,33 +42,32 @@ async function listExpenses() {
     ];
     
     console.log(columns.join(' | '))
-
   });
-  
-  client.end()
+
+  await client.end().catch(err => logAndExit(err));;
 };
 
 async function addExpense(amount, memo) {
-  await client.connect();
+  await client.connect().catch(err => logAndExit(err));;
   
   let date = new Date().toLocaleDateString();
   
   await client.query(`INSERT INTO expenses (created_on, amount, memo)
-  VALUES ('${date}', ${amount}, '${memo}')
-  `);
+  VALUES ('${date}', ${amount}, '${memo}')`).catch(err => logAndExit(err));;
   
-  client.end()
+  await client.end().catch(err => logAndExit(err));
 }
 
-let command = argv[2];
+let args = PROCESS.argv;
+let command = args[2];
 
 if (command === 'help') {
   displayHelp();
 } else if (command === 'list') {
     listExpenses();
 } else if (command === 'add') {
-  let amount = argv[3];
-  let memo = argv[4];
+  let amount = args[3];
+  let memo = args[4];
   
   if (amount && memo) {
     addExpense(amount, memo);
