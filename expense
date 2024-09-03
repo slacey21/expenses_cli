@@ -19,7 +19,40 @@ class ExpenseData {
     let response = await this.client.query('SELECT * FROM expenses ORDER BY created_on')
                                     .catch(err => logAndExit(err));
     
-    response.rows.forEach(tuple => {
+    this.displayExpenses(response);
+
+    await this.client.end().catch(err => logAndExit(err));
+  }
+
+  async addExpense(amount, memo) {
+    await this.client.connect().catch(err => logAndExit(err));
+    
+    let date = new Date().toLocaleDateString();
+
+    let queryText = 'INSERT INTO expenses (created_on, amount, memo) VALUES ($1, $2, $3)';
+    let values = [date, amount, memo];
+    
+    await this.client.query(queryText, values).catch(err => logAndExit(err));
+    
+    await this.client.end().catch(err => logAndExit(err));
+  }
+
+  async searchExpenses(term) {
+    await this.client.connect().catch(err => logAndExit(err));
+
+    let queryText = "SELECT * FROM expenses WHERE memo ILIKE $1";
+    let values = ['%' + term + '%'];
+    
+    let response = await this.client.query(queryText, values)
+                                    .catch(err => logAndExit(err));
+    
+    this.displayExpenses(response);
+    
+    await this.client.end().catch(err => logAndExit(err));
+  }
+
+  displayExpenses(res) {
+    res.rows.forEach(tuple => {
       let columns = [
         `${tuple.id}`.padStart(3),
         tuple.created_on.toDateString().padStart(10),
@@ -29,21 +62,6 @@ class ExpenseData {
       
       console.log(columns.join(' | '))
     });
-
-    await this.client.end().catch(err => logAndExit(err));;
-  }
-
-  async addExpense(amount, memo) {
-    await this.client.connect().catch(err => logAndExit(err));;
-    
-    let date = new Date().toLocaleDateString();
-
-    let queryText = 'INSERT INTO expenses (created_on, amount, memo) VALUES ($1, $2, $3)';
-    let values = [date, amount, memo];
-    
-    await this.client.query(queryText, values).catch(err => logAndExit(err));;
-    
-    await this.client.end().catch(err => logAndExit(err));
   }
 }
 
@@ -85,7 +103,15 @@ class CLI {
       } else {
         console.log('You must provide an amount and memo.');
       }
-    } 
+    } else if (command === 'search') {
+      let term = args[3];
+
+      if (term) {
+        this.application.searchExpenses(term);
+      } else {
+        console.log('You must provide a search term');
+      }
+    }
   }
 }
 
