@@ -16,6 +16,7 @@ class ExpenseData {
 
   async listExpenses() {
     await this.client.connect().catch(err => logAndExit(err));
+    await this.setupSchema().catch(err => logAndExit(err));
 
     let response = await this.client.query('SELECT * FROM expenses ORDER BY created_on')
                                     .catch(err => logAndExit(err));
@@ -31,7 +32,8 @@ class ExpenseData {
 
   async addExpense(amount, memo) {
     await this.client.connect().catch(err => logAndExit(err));
-    
+    await this.setupSchema().catch(err => logAndExit(err));
+
     let date = new Date().toLocaleDateString();
 
     let queryText = 'INSERT INTO expenses (created_on, amount, memo) VALUES ($1, $2, $3)';
@@ -44,6 +46,7 @@ class ExpenseData {
 
   async searchExpenses(term) {
     await this.client.connect().catch(err => logAndExit(err));
+    await this.setupSchema().catch(err => logAndExit(err));
 
     let queryText = "SELECT * FROM expenses WHERE memo ILIKE $1";
     let values = ['%' + term + '%'];
@@ -62,6 +65,7 @@ class ExpenseData {
 
   async deleteExpense(id) {
     await this.client.connect().catch(err => logAndExit(err));
+    await this.setupSchema().catch(err => logAndExit(err));
 
     let searchQueryText = 'SELECT * FROM expenses WHERE id = $1';
     
@@ -85,12 +89,30 @@ class ExpenseData {
 
   async clearExpenses() {
     await this.client.connect().catch(err => logAndExit(err));
+    await this.setupSchema().catch(err => logAndExit(err));
 
     await this.client.query('DELETE FROM expenses').catch(err => logAndExit(err));
       
     console.log('All expenses have been deleted.');
   
     await this.client.end().catch(err => logAndExit(err));
+  }
+
+  async setupSchema() {
+    let queryText = `SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public'
+    AND table_name = 'doesnotexist'`;
+    
+    let response = await this.client.query(queryText).catch(err => logAndExit(err));
+    
+    if (response.rows[0].count === 0) {
+      let createQuery = `CREATE TABLE expenses (
+        id serial PRIMARY KEY,
+        amount numeric(6, 2) NOT NULL,
+        memo text NOT NULL,
+        created_on DATE NOT NULL)`;
+      
+      await this.client.query(createQuery).catch(err => logAndExit(err));
+    }
   }
 
   displayExpenses(res) {
@@ -152,6 +174,7 @@ class CLI {
 
   run(args) {
     let command = args[2];
+    this.application.setupSchema();
 
     if (command === 'help') {
       CLI.displayHelp();
