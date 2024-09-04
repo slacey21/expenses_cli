@@ -20,7 +20,11 @@ class ExpenseData {
     let response = await this.client.query('SELECT * FROM expenses ORDER BY created_on')
                                     .catch(err => logAndExit(err));
     
+    this.displayCount(response);
     this.displayExpenses(response);
+    if (response.rowCount > 1) {
+      this.displayTotal(response);
+    }
 
     await this.client.end().catch(err => logAndExit(err));
   }
@@ -47,7 +51,11 @@ class ExpenseData {
     let response = await this.client.query(queryText, values)
                                     .catch(err => logAndExit(err));
     
+    this.displayCount(response);
     this.displayExpenses(response);
+    if (response.rowCount > 1) {
+      this.displayTotal(response);
+    }
     
     await this.client.end().catch(err => logAndExit(err));
   }
@@ -97,6 +105,27 @@ class ExpenseData {
       console.log(columns.join(' | '))
     });
   }
+
+  displayCount(res) {
+    if (res.rowCount === 0) {
+      console.log('There are no expenses.');
+    } else if (res.rowCount === 1) {
+      console.log('There is 1 expense.');
+    } else {
+      console.log(`There are ${res.rowCount} expenses.`);
+    }
+  }
+
+  displayTotal(res) {
+    let total = res.rows.reduce((sum, tuple) => {
+      return sum + Number(tuple.amount);
+    }, 0);
+    
+    total = String(total.toFixed(2));
+
+    console.log('-'.repeat(50));
+    console.log(`Total ${String(total).padStart(30, ' ')}${' '.repeat(14)}`);
+  }
 }
 
 class CLI {
@@ -138,8 +167,7 @@ class CLI {
         console.log('You must provide an amount and memo.');
       }
     } else if (command === 'search') {
-
-      if (term) {
+      if (args[3]) {
         this.application.searchExpenses(args[3]);
       } else {
         console.log('You must provide a search term');
