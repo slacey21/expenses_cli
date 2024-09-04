@@ -2,6 +2,7 @@
 
 const { Client } = require('pg');
 const PROCESS = require('process');
+const READLINE = require('readline');
 
 function logAndExit(error) {
   console.log(error);
@@ -48,6 +49,39 @@ class ExpenseData {
     
     this.displayExpenses(response);
     
+    await this.client.end().catch(err => logAndExit(err));
+  }
+
+  async deleteExpense(id) {
+    await this.client.connect().catch(err => logAndExit(err));
+
+    let searchQueryText = 'SELECT * FROM expenses WHERE id = $1';
+    
+    let response = await this.client.query(searchQueryText, [id])
+                                    .catch(err => logAndExit(err));
+
+    if (response.rowCount === 1) {
+      let deleteQueryText = 'DELETE FROM expenses WHERE id = $1';
+      await this.client.query(deleteQueryText, [id])
+                      .catch(err => logAndExit(err));
+      
+      console.log('The following expense has been deleted:')
+      this.displayExpenses(response);
+
+    } else {
+      console.log(`There is no expense with the id '#${id}'.`);
+    } 
+
+    await this.client.end().catch(err => logAndExit(err));
+  }
+
+  async clearExpenses() {
+    await this.client.connect().catch(err => logAndExit(err));
+
+    await this.client.query('DELETE FROM expenses').catch(err => logAndExit(err));
+      
+    console.log('All expenses have been deleted.');
+  
     await this.client.end().catch(err => logAndExit(err));
   }
 
@@ -104,13 +138,26 @@ class CLI {
         console.log('You must provide an amount and memo.');
       }
     } else if (command === 'search') {
-      let term = args[3];
 
       if (term) {
-        this.application.searchExpenses(term);
+        this.application.searchExpenses(args[3]);
       } else {
         console.log('You must provide a search term');
       }
+    } else if (command === 'delete') {
+      this.application.deleteExpense(args[3]);
+    } else if (command === 'clear') {
+      let rl = READLINE.createInterface({
+        input: process.stdin,
+        output: process.stdout
+      });
+      let questionText = 'This will remove all expenses. Are you sure? (y/n) ';
+      rl.question(questionText, answer => {
+        if (answer === 'y') {
+          this.application.clearExpenses();
+        }
+        rl.close();
+      });
     }
   }
 }
